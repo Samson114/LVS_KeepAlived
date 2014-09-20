@@ -1,0 +1,49 @@
+#!/bin/sh
+# 定义虚拟ip
+VIP=172.18.85.210（虚拟ip）
+# 定义realserver,并已逗号分开
+RIPS=172.18.85.211,172.18.85.214 #两台实际ip
+
+# 定义提供服务的端口
+SERVICE=80
+
+# 调用init.d脚本的标准库
+. /etc/rc.d/init.d/functions
+case $1 in
+        start)
+        echo "Start LVS of DR Mode"
+        # lvs dr模式不需要路由转发,但是keepalived需要
+        #echo "0" > /proc/sys/net/ipv4/ip_forward
+        # 开启icmp包重定向
+        echo "1" > /proc/sys/net/ipv4/conf/all/send_redirects
+        echo "1" > /proc/sys/net/ipv4/conf/default/send_redirects
+        echo "1" > /proc/sys/net/ipv4/conf/eth0/send_redirects
+        # 绑定虚拟ip
+        ifconfig eth0:0 $VIP broadcast $VIP netmask 255.255.255.255 up
+        route add -host $VIP dev eth0:0
+        # 清除lvs规则
+        ipvsadm -C
+        # 添加一条虚拟服务器记录
+    # -p指定一定的时间内将相同的客户端分配到同一台后端服务器
+    # 用于解决session的问题,测试时或有别的解决方案时建议去掉
+        ipvsadm -A -t $VIP:$SERVICE -s wlc -p
+
+        # 添加真实服务器记录
+        for RIP in `echo $RIPS |sed  -e 's/,/\n/g'`
+        do
+                ipvsadm -a -t $VIP:$SERVICE -r $RIP:$SERVICE -g -w 1
+        done
+        # 设置tcp tcpfin  udp的超时连接值
+        ipvsadm --set 30 120 300
+        ipvsadm
+        ;;
+
+        stop)
+        echo "Stop LVS DR"
+        ifconfig eth0:0 down
+        ipvsadm -C
+        ;;
+        *)
+        echo "Usage:$0 {start | stop}"
+        exit 1
+esac

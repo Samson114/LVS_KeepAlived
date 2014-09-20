@@ -1,0 +1,54 @@
+1、安装LVS
+tar zxvf ipvsadm-XXX.tar.gz
+cd  /usr/local/kernels/
+ln -s /usr/src/kernels/2.6.XX/ /usr/src/linux
+cd ipvsadm-XXX
+make && make install
+
+2、安装keepalived
+tar zxvf keepalived-XXX.tar.gz
+cd keepalived-XXX
+
+./configure --prefix=/usr/local/keepalived                         ####编译安装并指定目录
+make
+make install
+cp /usr/local/keepalived/sbin/keepalived /usr/sbin/
+cp /usr/local/keepalived/etc/sysconfig/keepalived /etc/sysconfig/
+cp /usr/local/keepalived/etc/rc.d/init.d/keepalived /etc/init.d/
+mkdir /etc/keepalived
+cd /etc/keepalived
+vim keepalived.conf  
+
+可能报错：Popt libraries is required
+yum install popt-devel
+
+make && make install
+
+cp /usr/local/etc/rc.d/init.d/keepalived  /etc/rc.d/init.d/
+cp /usr/local/etc/sysconfig/keepalived  /etc/sysconfig/
+mkdir /etc/keepalived
+cp /usr/local/etc/keepalived/keepalived.conf  /etc/keepalived/
+cp  /usr/local/sbin/keepalived /usr/sbin/
+service keepalived start
+service keepalived stop
+
+启动后查看状态： ip addr | grep eth0
+
+
+命令启动
+
+/usr/local/sbin/keepalived -D -f /usr/local/etc/keepalived/keepalived.conf
+
+同步服务器的系统时间
+# ntpdate time.nist.gov
+ 8 Dec 11:56:59 ntpdate[10531]: adjust time server 192.43.244.18 offset 0.009136 sec
+查看当前kernels环境
+# uname –a
+Linux localhost.localdomain 2.6.9-89.31.1.EL #1 Tue Oct 19 16:47:55 EDT 2010 i686 i686 i386 GNU/Linux
+
+软连接当前kernels目录到/usr/src/linux ，否则无法支持IPVS
+# ln -s /usr/src/kernels/2.6.9-89.31.1.EL-i686/  /usr/src/linux
+
+虚拟ip
+/sbin/ifconfig eth1:1 172.18.85.210 broadcast 172.18.85.255 netmask 255.255.255.0 up
+/sbin/route add -host 172.18.85.210 dev eth1:1
